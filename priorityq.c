@@ -1,68 +1,85 @@
 #include <stdio.h>
 
-struct Process {
-    int id;
-    int burst_time;
-    int priority;
-    int arrival_time;
-    int remaining_time;
-    int start_time;
-    int end_time;
-    int waiting_time;
-    int turnaround_time;
+// Structure to hold process details
+struct process {
+    int pid;            // Process ID
+    int at;             // Arrival Time
+    int bt;             // Burst Time
+    int ct;             // Completion Time
+    int tat;            // Turnaround Time
+    int wt;             // Waiting Time
+    int priority;       // Priority (lower number = higher priority)
+    int remaining_time; // Time left to execute
+    int completed;      // Flag to check if completed
 };
 
-// Function to find the process with the highest priority (lowest number) and that is ready to execute
-int find_highest_priority_process(struct Process p[], int n, int current_time) {
-    int highest_priority = 9999;
-    int index = -1;
-
-    for (int i = 0; i < n; i++) {
-        if (p[i].arrival_time <= current_time && p[i].remaining_time > 0 && p[i].priority < highest_priority) {
-            highest_priority = p[i].priority;
-            index = i;
+// Function to sort processes by arrival time (and by priority if same AT)
+void sortByArrivalAndPriority(struct process p[], int n) {
+    struct process temp;
+    for (int i = 0; i < n - 1; i++) {
+        for (int j = 0; j < n - i - 1; j++) {
+            // First sort by arrival time, then by priority
+            if (p[j].at > p[j + 1].at || 
+               (p[j].at == p[j + 1].at && p[j].priority > p[j + 1].priority)) {
+                temp = p[j];
+                p[j] = p[j + 1];
+                p[j + 1] = temp;
+            }
         }
     }
-
-    return index;
 }
 
-void priority_scheduling(struct Process p[], int n) {
-    int current_time = 0;
-    int completed = 0;
+// Main scheduling function
+void priorityScheduling(struct process p[], int n) {
+    sortByArrivalAndPriority(p, n); // Sort before starting
 
-    // Execute processes until all are completed
+    int time = 0, completed = 0;
+
+    // Initialize process state
+    for (int i = 0; i < n; i++) {
+        p[i].remaining_time = p[i].bt;
+        p[i].completed = 0;
+    }
+
+    // Scheduler runs until all processes are complete
     while (completed < n) {
-        int index = find_highest_priority_process(p, n, current_time);
-        if (index == -1) {  // No process is ready to execute
-            current_time++;
-            continue;
+        int highestPriority = 9999;
+        int currentProcess = -1;
+
+        // Find the highest priority process that has arrived and not completed
+        for (int i = 0; i < n; i++) {
+            if (p[i].at <= time && !p[i].completed && p[i].priority < highestPriority) {
+                highestPriority = p[i].priority;
+                currentProcess = i;
+            }
         }
 
-        // Process execution
-        if (p[index].remaining_time == p[index].burst_time) {
-            p[index].start_time = current_time;
+        if (currentProcess != -1) {
+            // Execute the process for 1 unit of time
+            p[currentProcess].remaining_time--;
+            time++;
+
+            // If process finishes
+            if (p[currentProcess].remaining_time == 0) {
+                p[currentProcess].ct = time;
+                p[currentProcess].tat = p[currentProcess].ct - p[currentProcess].at;
+                p[currentProcess].wt = p[currentProcess].tat - p[currentProcess].bt;
+                p[currentProcess].completed = 1;
+                completed++;
+
+                // Print details for this process
+                printf("\nProcess P%d", p[currentProcess].pid);
+                printf(" | AT: %d", p[currentProcess].at);
+                printf(" | BT: %d", p[currentProcess].bt);
+                printf(" | Priority: %d", p[currentProcess].priority);
+                printf(" | CT: %d", p[currentProcess].ct);
+                printf(" | TAT: %d", p[currentProcess].tat);
+                printf(" | WT: %d", p[currentProcess].wt);
+            }
+        } else {
+            // No process available to run at this time
+            time++;
         }
-
-        // Execute the process for one unit of time
-        current_time++;
-        p[index].remaining_time--;
-
-        // If the process is completed
-        if (p[index].remaining_time == 0) {
-            p[index].end_time = current_time;
-            p[index].turnaround_time = p[index].end_time - p[index].arrival_time;
-            p[index].waiting_time = p[index].turnaround_time - p[index].burst_time;
-            completed++;
-        }
-    }
-}
-
-void print_results(struct Process p[], int n) {
-    printf("Process ID | Arrival Time | Burst Time | Priority | Waiting Time | Turnaround Time\n");
-    for (int i = 0; i < n; i++) {
-        printf("P%d\t\t%d\t\t%d\t\t%d\t\t%d\t\t%d\n",
-            p[i].id, p[i].arrival_time, p[i].burst_time, p[i].priority, p[i].waiting_time, p[i].turnaround_time);
     }
 }
 
@@ -71,28 +88,17 @@ int main() {
     printf("Enter number of processes: ");
     scanf("%d", &n);
 
-    struct Process p[n];
+    struct process p[n];
 
-    // Input for processes
+    // Input process details
     for (int i = 0; i < n; i++) {
-        p[i].id = i + 1;
-        printf("\nEnter Arrival Time, Burst Time, and Priority for Process P%d:\n", i + 1);
-        printf("Arrival Time: ");
-        scanf("%d", &p[i].arrival_time);
-        printf("Burst Time: ");
-        scanf("%d", &p[i].burst_time);
-        printf("Priority: ");
-        scanf("%d", &p[i].priority);
-
-        p[i].remaining_time = p[i].burst_time;
+        p[i].pid = i + 1;
+        printf("\nEnter Arrival Time, Burst Time, and Priority for Process %d: ", p[i].pid);
+        scanf("%d %d %d", &p[i].at, &p[i].bt, &p[i].priority);
     }
 
-    // Perform priority scheduling
-    priority_scheduling(p, n);
-
-    // Print the results
-    print_results(p, n);
+    // Run the priority preemptive scheduling
+    priorityScheduling(p, n);
 
     return 0;
 }
-
